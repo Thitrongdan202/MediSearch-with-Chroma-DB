@@ -38,7 +38,7 @@ st.markdown("""
         border: 2px solid #1f77b4;
     }
     .metric-card {
-        background-color: #f0f2f6;
+        background-color: ##112838;
         padding: 1rem;
         border-radius: 10px;
         border-left: 4px solid #1f77b4;
@@ -48,7 +48,7 @@ st.markdown("""
         border-radius: 10px;
         padding: 1rem;
         margin: 0.5rem 0;
-        background-color: #fafafa;
+        background-color: ##112838;
     }
     .similarity-score {
         color: #1f77b4;
