@@ -71,3 +71,4 @@ venv.bak/
 node_modules/
 chroma_db/
 *.parquet/
+drug_pipeline.ipynb
