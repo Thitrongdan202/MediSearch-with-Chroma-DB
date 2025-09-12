@@ -210,15 +210,16 @@ def drug_substitution_page(collections, model):
                         continue
                     if prefer_good_reviews and metadata.get('excellent_review', 0) < 50:
                         continue
-                    
+
                     alternatives.append({
-                        'name': metadata['medicine_name'],
+                        'name': metadata.get('medicine_name', '(Không rõ tên)'),
                         'similarity': (1 - distance) * 100,
-                        'composition': metadata['composition'],
-                        'uses': metadata['uses'],
-                        'manufacturer': metadata['manufacturer'],
-                        'excellent_review': metadata.get('excellent_review', 0),
-                        'poor_review': metadata.get('poor_review', 0)
+                        'composition': metadata.get('composition') or metadata.get('ingredients') \
+                                       or (results['documents'][0][i] if results.get('documents') else ""),  # FIX
+                        'uses': metadata.get('uses', ''),  # FIX
+                        'manufacturer': metadata.get('manufacturer', ''),  # FIX
+                        'excellent_review': metadata.get('excellent_review', 0),  # FIX
+                        'poor_review': metadata.get('poor_review', 0),  # FIX
                     })
                 
                 if alternatives:
@@ -237,14 +238,14 @@ def drug_substitution_page(collections, model):
                         col1, col2 = st.columns([3, 1])
                         with col1:
                             st.markdown(f"""
-                            **💊 {alt['name']}**  
-                            *Độ tương đồng: {alt['similarity']:.1f}%*  
-                            🧪 {alt['composition'][:80]}...  
-                            🎯 {alt['uses'][:100]}...  
-                            🏭 {alt['manufacturer']}
+                            **💊 {alt.get('name')}**  
+                            *Độ tương đồng: {alt.get('similarity'):.1f}%*  
+                            🧪 {alt.get('composition')[:80]}...  
+                            🎯 {alt.get('uses')[:100]}...  
+                            🏭 {alt.get('manufacturer')}
                             """)
                         with col2:
-                            st.metric("Đánh giá tốt", f"{alt['excellent_review']}%")
+                            st.metric("Đánh giá tốt", f"{alt.get('excellent_review',0)}%")
                         st.markdown("---")
                 else:
                     st.warning("Không tìm thấy thuốc thay thế nào phù hợp với tiêu chí lọc của bạn.")
