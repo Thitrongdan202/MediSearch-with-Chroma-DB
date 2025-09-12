@@ -1,0 +1,73 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.egg-info/
+dist/
+build/
+eggs/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# R
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+# Uncomment if you want to ignore all data files
+# data/
+
+# Large files and directories
+# Uncomment and adjust these based on your project needs
+# *.tif
+# *.jpg
+# *.png
+# large_data_directory/
+
+# Environment and dependency management
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+node_modules/
+chroma_db/
+*.parquet/
