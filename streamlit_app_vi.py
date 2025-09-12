@@ -93,6 +93,20 @@ def get_openai_client():
         return None
     return OpenAI(api_key=key)
 
+def _reviews_from_main(name, collections, model):
+    """Lấy % đánh giá từ drugs_main theo tên thuốc (n_results=1)."""
+    try:
+        if not name or "drugs_main" not in collections:
+            return None, None, None
+        hits = search_medicines(collections["drugs_main"], name, model, n_results=1)
+        metas = (hits or {}).get("metadatas", [[]])
+        if metas and metas[0]:
+            m = metas[0][0] or {}
+            return m.get("excellent_review"), m.get("average_review"), m.get("poor_review")
+    except Exception:
+        pass
+    return None, None, None
+
 def search_medicines(collection, query_text: str, model, n_results: int = 5):
     """Tìm kiếm thuốc sử dụng độ tương đồng ngữ nghĩa"""
     try:
@@ -229,7 +243,21 @@ def drug_substitution_page(collections, model):
                         'excellent_review': metadata.get('excellent_review', 0),  # FIX
                         'poor_review': metadata.get('poor_review', 0),  # FIX
                     })
-                
+
+                # Nếu % đánh giá trống (hoặc =0) trong composition → hỏi nhanh sang main để bồi dữ liệu
+                for alt in alternatives:
+                    has_reviews = any([
+                        alt.get("excellent_review"),
+                        alt.get("average_review"),
+                        alt.get("poor_review")
+                    ])
+                    if not has_reviews:
+                        ex, av, po = _reviews_from_main(alt.get("name"), collections, model)
+                        if any([ex, av, po]):
+                            alt["excellent_review"] = ex or 0
+                            alt["average_review"] = av or 0
+                            alt["poor_review"] = po or 0
+
                 if alternatives:
                     st.success(f"Tìm thấy {len(alternatives)} thuốc thay thế")
                     
@@ -254,6 +282,9 @@ def drug_substitution_page(collections, model):
                             """)
                         with col2:
                             st.metric("Đánh giá tốt", f"{alt.get('excellent_review',0)}%")
+                            st.metric("Trung bình", f"{alt.get('average_review', 0)}%")
+                            st.metric("Kém", f"{alt.get('poor_review', 0)}%")
+
                         st.markdown("---")
                 else:
                     st.warning("Không tìm thấy thuốc thay thế nào phù hợp với tiêu chí lọc của bạn.")
