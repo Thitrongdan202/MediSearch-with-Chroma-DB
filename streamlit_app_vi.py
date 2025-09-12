@@ -604,7 +604,7 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Trạng thái Hệ thống")
     st.sidebar.success("✅ ChromaDB Đã kết nối")
-    st.sidebar.success("✅ Mô hình AI Đã tải")
+    st.sidebar.success("✅ Mô hình AI")
     st.sidebar.info(f"📊 {st.session_state.collections['drugs_main'].count():,} thuốc có sẵn")
     
     # Hiển thị trang đã chọn
