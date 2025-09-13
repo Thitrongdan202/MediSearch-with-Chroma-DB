@@ -623,10 +623,14 @@ def manufacturer_analytics_page(collections):
                 })
             
             comparison_df = pd.DataFrame(comparison_data)
-            
+
             fig_bar = px.bar(comparison_df, x='Nhà sản xuất', y='Số lượng Thuốc',
-                           title='Số lượng Thuốc theo Top Nhà sản xuất',
-                           text='Số lượng Thuốc')
+                             title='Số lượng Thuốc theo Top Nhà sản xuất',
+                             text='Số lượng Thuốc')
+            fig_bar.update_traces(
+                texttemplate='%{text}', textposition='outside',
+                hovertemplate="<b>%{x}</b><br>Số lượng: %{y}<extra></extra>"
+            )
             fig_bar.update_traces(texttemplate='%{text}', textposition='outside')
             fig_bar.update_xaxes(tickangle=45)
             st.plotly_chart(fig_bar, use_container_width=True)
@@ -682,13 +686,16 @@ def dashboard_overview_page(collections):
             # Top nhà sản xuất
             st.markdown("### 🏭 Top 10 Nhà sản xuất")
             top_mfrs = medicines_df['manufacturer'].value_counts().head(10)
-            
+
             fig_mfr = px.bar(
                 x=top_mfrs.values,
                 y=top_mfrs.index,
                 orientation='h',
                 title='Số lượng Thuốc theo Nhà sản xuất'
             )
+            fig_mfr.update_yaxes(categoryorder="total ascending")
+            fig_mfr.update_traces(hovertemplate="<b>%{y}</b><br>Số lượng: %{x}<extra></extra>")
+
             fig_mfr.update_yaxes(categoryorder="total ascending")
             st.plotly_chart(fig_mfr, use_container_width=True)
         
@@ -743,12 +750,18 @@ def dashboard_overview_page(collections):
                 categories.append('Khác')
         
         category_dist = pd.Series(categories).value_counts()
-        
+
         fig_cat = px.bar(
             x=category_dist.index,
             y=category_dist.values,
-            title='Phân bố Thuốc theo Danh mục'
+            title='Phân bố Thuốc theo Danh mục',
+            labels={'x': 'Danh mục', 'y': 'Số lượng Thuốc'}
         )
+
+        fig_cat.update_traces(
+            hovertemplate="<b>Danh mục:</b> %{x}<br><b>Số lượng:</b> %{y}<extra></extra>"
+        )
+        
         st.plotly_chart(fig_cat, use_container_width=True)
         
     except Exception as e:
