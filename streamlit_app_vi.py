@@ -110,6 +110,7 @@ import re
 
 # Chỉ giữ 1 bộ quy tắc (rút gọn ở đây; bạn có thể giữ bộ dài hiện tại)
 USES_EN_VI = [
+    # Khung câu
     (r"\bTreatment of\b", "Điều trị"),
     (r"\bRelief of\b", "Giảm"),
     (r"\bPrevention of\b", "Phòng ngừa"),
@@ -120,7 +121,26 @@ USES_EN_VI = [
     (r"\bIndicated for\b", "Chỉ định cho"),
     (r"\bUsed for\b", "Dùng cho"),
 
-    # triệu chứng hay gặp
+    # --- tiêu chảy nhiễm khuẩn & dị bản ---
+    (r"\bAcute infectious diarrh(o)?ea\b", "tiêu chảy nhiễm khuẩn cấp"),
+    (r"\bInfectious diarrh(o)?ea\b", "tiêu chảy nhiễm khuẩn"),
+    (r"\bBacterial diarrh(o)?ea\b", "tiêu chảy do vi khuẩn"),
+    (r"\bViral diarrh(o)?ea\b", "tiêu chảy do vi rút"),
+    (r"\bDiarrh(o)?ea due to (infection|bacteria|virus)\b", "tiêu chảy do nhiễm trùng"),
+
+    # --- chuẩn bị ruột trước mổ (đủ mọi dị bản hay gặp) ---
+    (r"\bIntestine\s+preparation\b(.*?before (any )?surgery)?", "chuẩn bị ruột trước phẫu thuật"),
+    (r"\bIntestin(al|e)\s+preparation\b(.*?before (any )?surgery)?", "chuẩn bị ruột trước phẫu thuật"),
+    (r"\bBowel\s+preparation\b(.*?before (any )?surgery)?", "chuẩn bị ruột trước phẫu thuật"),
+    (r"\bPreoperative (bowel|intestinal) preparation\b", "chuẩn bị ruột trước phẫu thuật"),
+
+    # --- thiếu hụt dinh dưỡng ---
+    (r"\bNutritional deficienc(y|ies)\b", "thiếu hụt dinh dưỡng"),
+    (r"\bNutrient deficienc(y|ies)\b", "thiếu hụt dinh dưỡng"),
+
+    # Triệu chứng phổ biến
+    (r"\bPain relief\b", "giảm đau"),
+    (r"\bFever relief\b", "giảm sốt"),
     (r"\bDiarrh(o)?ea\b", "tiêu chảy"),
     (r"\bConstipation\b", "táo bón"),
     (r"\bFever\b", "sốt"),
@@ -129,15 +149,11 @@ USES_EN_VI = [
     (r"\bNasal congestion\b", "nghẹt mũi"),
     (r"\bHeadache\b", "đau đầu"),
     (r"\bMigraine\b", "đau nửa đầu"),
-
-    # cụm bạn gặp trong data
-    (r"\bPain relief\b", "giảm đau"),
-    (r"\bFever relief\b", "giảm sốt"),
 ]
 
 HEAD_VERBS = ("Điều trị", "Giảm", "Phòng ngừa", "Kiểm soát", "Dự phòng", "Hỗ trợ điều trị", "Hạ", "Làm giảm", "Làm dịu", "Liệu pháp")
 
-COND_TERMS = ["tiêu chảy","táo bón","sốt","ho","sổ mũi","nghẹt mũi","đau đầu","đau nửa đầu","đau họng","đau răng","đau bụng","đau dạ dày","đau thượng vị","khó tiêu","viêm dạ dày","viêm","tăng huyết áp","đái tháo đường type 2","nhồi máu cơ tim","đột quỵ","động kinh","co giật","trào ngược dạ dày thực quản","loét dạ dày tá tràng","đau thắt ngực","đau thần kinh","mỡ máu cao","viêm mũi dị ứng","hắt hơi","cảm lạnh","ợ nóng","ho khan","gàu","nhiễm khuẩn da","nhiễm nấm da","cục máu đông","rối loạn da","lo âu","thiếu hụt dinh dưỡng","rối loạn mắt","nám da","vẩy nến","thải ghép cơ quan","phù nề","rối loạn cương dương"]
+COND_TERMS = ["tiêu chảy","táo bón","sốt","ho","sổ mũi","nghẹt mũi","đau đầu","đau nửa đầu","đau họng","đau răng","đau bụng","đau dạ dày","đau thượng vị","khó tiêu","viêm dạ dày","viêm","tăng huyết áp","đái tháo đường type 2","nhồi máu cơ tim","đột quỵ","động kinh","co giật","trào ngược dạ dày thực quản","loét dạ dày tá tràng","đau thắt ngực","đau thần kinh","mỡ máu cao","viêm mũi dị ứng","hắt hơi","cảm lạnh","ợ nóng","ho khan","gàu","nhiễm khuẩn da","nhiễm nấm da","cục máu đông","rối loạn da","lo âu","thiếu hụt dinh dưỡng","rối loạn mắt","nám da","vẩy nến","thải ghép cơ quan","phù nề","rối loạn cương dương""tiêu chảy nhiễm khuẩn",]
 
 def normalize_uses_en(txt: str) -> str:
     if not isinstance(txt, str): return ""
@@ -166,6 +182,9 @@ def vi_translate_uses(en_text: str) -> str:
     t = re.sub(r'(?i)\bpain\s+relief\b', 'giảm đau', t)
     t = re.sub(r'(?i)\bfever\s+relief\b', 'giảm sốt', t)
     t = re.sub(r'(?i)\btreatment of\b', 'Điều trị', t)
+    t = re.sub(r'(?i)\binfectious\s+tiêu chảy\b', 'tiêu chảy nhiễm khuẩn', t)
+    t = re.sub(r'(?i)\btiêu chảy\s+nhiễm trùng\b', 'tiêu chảy nhiễm khuẩn', t)
+    t = re.sub(r'(?i)\bnutritional\s+deficiencies\b', 'thiếu hụt dinh dưỡng', t)
 
     # chốt hạ cực phổ biến
     t = re.sub(r'(?i)\bdiarrh(o)?ea\b', 'tiêu chảy', t)
