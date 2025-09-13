@@ -602,8 +602,13 @@ def manufacturer_analytics_page(collections):
             fig = px.pie(values=review_data['Phần trăm'], names=review_data['Loại Đánh giá'],
                         title=f'Phân bố Đánh giá - {selected_manufacturer}',
                         color_discrete_sequence=['#2ecc71', '#f39c12', '#e74c3c'])
+
+            fig.update_traces(
+                textinfo="percent",
+                hovertemplate="<b>%{label}</b>: %{value:.1f}%<extra></extra>"
+            )
             st.plotly_chart(fig, use_container_width=True)
-            
+
             # So sánh top nhà sản xuất
             st.markdown("### So sánh Top Nhà sản xuất")
             
@@ -709,6 +714,11 @@ def dashboard_overview_page(collections):
                 values=review_dist.values,
                 names=review_dist.index,
                 title='Phân bố Chất lượng Thuốc'
+            )
+
+            fig_review.update_traces(
+                textinfo="percent",
+                hovertemplate="<b>%{label}</b>: %{percent:.1%} (n=%{value})<extra></extra>"
             )
             st.plotly_chart(fig_review, use_container_width=True)
         
