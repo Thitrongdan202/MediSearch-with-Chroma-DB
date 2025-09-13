@@ -14,6 +14,10 @@ import streamlit as st
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 # Cấu hình trang
 st.set_page_config(
     page_title="Nền tảng Phân tích Thuốc Thông minh",
@@ -89,9 +93,25 @@ def load_model():
 @st.cache_resource
 def get_openai_client():
     key = get_openai_api_key()
+    print(f"OpenAI API Key: {'(có)' if key else '(không)'}")
     if not key:
         return None
     return OpenAI(api_key=key)
+
+def translate_query_openai(user_prompt) -> str:
+    # using 'gpt-3.5-turbo' for translation
+    client = get_openai_client()
+    if client is None:
+        return user_prompt  # không có key -> fallback DB
+    system_prompt = "Bạn là một trợ lý dịch thuật y tế, hãy dịch câu hỏi sau đây sang tiếng Anh một cách chính xác với các từ ngữ chuyên ngành."
+    rsp = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+    )
+    return rsp.choices[0].message.content if rsp.choices else user_prompt
 
 def _reviews_from_main(name, collections, model):
     """Lấy % đánh giá từ drugs_main theo tên thuốc (n_results=1)."""
@@ -153,7 +173,8 @@ def semantic_search_page(collections, model):
                 ["Cơ sở dữ liệu chính", "Theo thành phần", "Theo tác dụng phụ"],
                 index=0
             )
-    
+    # translate query
+    query = translate_query_openai(query) if query else query
     if search_button and query:
         with st.spinner("Đang tìm kiếm thuốc..."):
             # Chọn collection
@@ -165,7 +186,6 @@ def semantic_search_page(collections, model):
                 collection = collections['drugs_side_effects']
             
             results = search_medicines(collection, query, model, num_results)
-            
             if results and results['metadatas'][0]:
                 st.success(f"Tìm thấy {len(results['metadatas'][0])} thuốc phù hợp với tìm kiếm của bạn")
                 
@@ -179,21 +199,21 @@ def semantic_search_page(collections, model):
                         <div class="drug-card">
                             <h4>💊 {metadata['medicine_name']}</h4>
                             <p><strong>Độ tương đồng:</strong> <span class="similarity-score">{similarity}</span></p>
-                            <p><strong>🧪 Thành phần:</strong> {metadata['composition'][:100]}...</p>
-                            <p><strong>🎯 Công dụng:</strong> {metadata['uses'][:150]}...</p>
-                            <p><strong>🏭 Hãng sản xuất:</strong> {metadata['manufacturer']}</p>
+                            <p><strong>🧪 Thành phần:</strong> {metadata.get('composition', '')[:100]}...</p>
+                            <p><strong>🎯 Công dụng:</strong> {metadata.get('uses', '')[:150]}...</p>
+                            <p><strong>🏭 Hãng sản xuất:</strong> {metadata.get('manufacturer', '')}</p>
                         </div>
                         """, unsafe_allow_html=True)
                         
                         # Chỉ số đánh giá
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Đánh giá xuất sắc", f"{metadata['excellent_review']}%", delta=None)
+                            st.metric("Đánh giá xuất sắc", f"{metadata.get('excellent_review', 0)}%", delta=None)
                         with col2:
-                            st.metric("Đánh giá trung bình", f"{metadata['average_review']}%", delta=None)
+                            st.metric("Đánh giá trung bình", f"{metadata.get('average_review', 0)}%", delta=None)
                         with col3:
-                            st.metric("Đánh giá kém", f"{metadata['poor_review']}%", delta=None)
-                        
+                            st.metric("Đánh giá kém", f"{metadata.get('poor_review', 0)}%", delta=None)
+
                         st.markdown("---")
             else:
                 st.warning("Không tìm thấy thuốc nào phù hợp với tiêu chí tìm kiếm của bạn.")
@@ -227,13 +247,7 @@ def drug_substitution_page(collections, model):
                 for i, metadata in enumerate(results['metadatas'][0]):
                     distance = results['distances'][0][i]
                     
-                    # Áp dụng bộ lọc
-                    if avoid_side_effects and metadata.get('poor_review', 0) > 30:
-                        continue
-                    if prefer_good_reviews and metadata.get('excellent_review', 0) < 50:
-                        continue
-
-                    alternatives.append({
+                    alt = {
                         'name': metadata.get('medicine_name', '(Không rõ tên)'),
                         'similarity': (1 - distance) * 100,
                         'composition': metadata.get('composition') or metadata.get('ingredients') \
@@ -242,10 +256,7 @@ def drug_substitution_page(collections, model):
                         'manufacturer': metadata.get('manufacturer', ''),  # FIX
                         'excellent_review': metadata.get('excellent_review', 0),  # FIX
                         'poor_review': metadata.get('poor_review', 0),  # FIX
-                    })
-
-                # Nếu % đánh giá trống (hoặc =0) trong composition → hỏi nhanh sang main để bồi dữ liệu
-                for alt in alternatives:
+                    }
                     has_reviews = any([
                         alt.get("excellent_review"),
                         alt.get("average_review"),
@@ -257,6 +268,12 @@ def drug_substitution_page(collections, model):
                             alt["excellent_review"] = ex or 0
                             alt["average_review"] = av or 0
                             alt["poor_review"] = po or 0
+                    # Áp dụng bộ lọc
+                    if avoid_side_effects and alt.get('poor_review', 0) > 30:
+                        continue
+                    if prefer_good_reviews and alt.get('excellent_review', 0) < 50:
+                        continue
+                    alternatives.append(alt)
 
                 if alternatives:
                     st.success(f"Tìm thấy {len(alternatives)} thuốc thay thế")
@@ -354,21 +371,15 @@ def side_effects_analysis_page(collections):
                 st.info("Chọn nhiều thuốc để phân tích tương tác")
 
 def get_openai_api_key():
-    try:
-        if hasattr(st, "secrets") and "openai_api_key" in st.secrets:
-            return st.secrets["openai_api_key"]
-    except Exception:
-        pass
-    if "openai_api_key" in st.session_state:
-        return st.session_state["openai_api_key"]
     return os.getenv("OPENAI_API_KEY")
 
 def generate_vi_answer_openai(user_q: str, results: dict, model_name: str = "gpt-5-mini"):
     client = get_openai_client()
     if client is None:
         return None  # không có key -> fallback DB
-
-    # ... build context như bạn đã làm ...
+    system_prompt = "Bạn là một trợ lý ảo y tế, hãy trả lời câu hỏi sau đây dựa trên ngữ cảnh nội bộ."
+    user_prompt = f"""Dựa trên các thông tin thuốc dưới đây, hãy trả lời câu hỏi của người dùng bằng tiếng Việt một cách ngắn gọn và dễ hiểu. Nếu không tìm thấy thông tin phù hợp, hãy nói rằng bạn không chắc chắn và khuyên người dùng hỏi ý kiến bác sĩ hoặc dược sĩ.
+    """
     rsp = client.responses.create(
         model=model_name,              # "gpt-5-mini" hoặc "gpt-5"
         input=[
