@@ -766,7 +766,7 @@ def main():
     
     # Menu navigation
     pages = {
-        "🔍 Tìm kiếm Ngữ nghĩa": semantic_search_page,
+        "🔍 Tìm kiếm Thuốc": semantic_search_page,
         "🔄 Thay thế Thuốc": drug_substitution_page,
         "⚠️ Phân tích Tác dụng Phụ": side_effects_analysis_page,
         "💬 Chatbot Y tế Q&A": chatbot_page,
