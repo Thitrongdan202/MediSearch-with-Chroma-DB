@@ -21,38 +21,140 @@ def _lc(x): return (x or "").lower()
 def _has_any(text, kws): return any(k in text for k in kws)
 
 SYMPTOM_MAP = {
+    # ——— Tiêu hoá ———
     "constipation": {
         "aliases": ["táo bón"],
-        "pos": ["constipation","laxative","stool softener","bulk-forming","osmotic","stimulant laxative",
-                "bisacodyl","senna","sennoside","lactulose","polyethylene glycol","macrogol",
-                "psyllium","ispaghula","docusate","glycerin","magnesium hydroxide"],
-        "neg": ["hypertension","high blood pressure","antihypertensive",
-                "telmisartan","amlodipine","losartan","valsartan","phenytoin","carbamazepine","valproate"]
-    },
-    "fever": {  # hạ sốt / giảm đau
-        "aliases": ["sốt","hạ sốt","giảm sốt","đau nhức","giảm đau","panadol","paradon","paracetamol"],
-        "pos": ["fever","antipyretic","analgesic","pain reliever","paracetamol","acetaminophen",
-                "ibuprofen","naproxen","aspirin","caffeine","cold & flu"],
-        "neg": ["antiepileptic","antihypertensive","phenytoin","carbamazepine","telmisartan"]
+        "pos": [
+            "constipation","laxative","stool softener","bulk-forming","osmotic","stimulant laxative",
+            "bisacodyl","senna","sennoside","lactulose","polyethylene glycol","macrogol",
+            "psyllium","ispaghula","docusate","glycerin","magnesium hydroxide"
+        ],
+        "neg": ["hypertension","high blood pressure","antihypertensive","telmisartan","amlodipine","losartan",
+                "valsartan","phenytoin","carbamazepine","valproate"]
     },
     "diarrhea": {
         "aliases": ["tiêu chảy","đi ngoài lỏng","phân lỏng"],
-        "pos": ["diarrhea","antidiarrheal","loperamide","racecadotril","bismuth subsalicylate",
-                "oral rehydration salts","ors","rehydration","zinc"],
+        "pos": [
+            "diarrhea","antidiarrheal","loperamide","racecadotril","bismuth subsalicylate",
+            "oral rehydration salts","ors","rehydration","zinc",
+            # nhiễm khuẩn / virus
+            "infectious diarrhea","bacterial diarrhea","viral diarrhea"
+        ],
         "neg": ["constipation","laxative","antihypertensive","antiepileptic"]
     },
+
+    # ——— Sốt / đau ———
+    "fever": {
+        "aliases": ["sốt","hạ sốt","giảm sốt","đau nhức","giảm đau","panadol","paradon","paracetamol"],
+        "pos": [
+            "fever","antipyretic","analgesic","pain reliever","paracetamol","acetaminophen",
+            "ibuprofen","naproxen","aspirin","caffeine","cold & flu"
+        ],
+        "neg": ["antiepileptic","antihypertensive","phenytoin","carbamazepine","telmisartan"]
+    },
+    "headache": {
+        "aliases": ["đau đầu","nhức đầu","migraine","đau nửa đầu"],
+        "pos": [
+            "headache","migraine","analgesic","pain reliever","paracetamol","acetaminophen",
+            "ibuprofen","naproxen","diclofenac","aspirin","triptan","sumatriptan"
+        ],
+        "neg": ["antiepileptic","antihypertensive","phenytoin","carbamazepine","valproate","telmisartan"]
+    },
+
+    # ——— Hô hấp / dị ứng ———
     "runny_nose": {
-        "aliases": ["sổ mũi","xổ mũi","chảy mũi","ngạt mũi","viêm mũi","cảm lạnh"],
-        "pos": ["runny nose","rhinitis","cold","antihistamine","decongestant","cetirizine","loratadine",
-                "fexofenadine","chlorpheniramine","diphenhydramine","phenylephrine","pseudoephedrine",
-                "oxymetazoline","xylometazoline","azelastine","guaifenesin","bromhexine","ambroxol"],
+        "aliases": ["sổ mũi","xổ mũi","chảy mũi","ngạt mũi","viêm mũi","cảm lạnh","hắt hơi","dị ứng"],
+        "pos": [
+            "runny nose","rhinitis","allergic rhinitis","sneezing","allergy",
+            "antihistamine","decongestant","cetirizine","loratadine","fexofenadine",
+            "chlorpheniramine","diphenhydramine","phenylephrine","pseudoephedrine",
+            "oxymetazoline","xylometazoline","azelastine","guaifenesin","bromhexine","ambroxol"
+        ],
         "neg": ["antihypertensive","antiepileptic"]
     },
-    "headache": {  # vẫn giữ nhóm đau đầu/migraine
-        "aliases": ["đau đầu","nhức đầu","migraine","đau nửa đầu"],
-        "pos": ["headache","migraine","analgesic","pain reliever","paracetamol","acetaminophen",
-                "ibuprofen","naproxen","diclofenac","aspirin","triptan","sumatriptan"],
-        "neg": ["antiepileptic","antihypertensive","phenytoin","carbamazepine","valproate","telmisartan"]
+    "cough": {
+        "aliases": ["ho","ho khan","ho có đờm"],
+        "pos": [
+            "cough","dry cough","productive cough","expectorant","mucolytic",
+            "dextromethorphan","guaifenesin","ambroxol","bromhexine","acetylcysteine","codeine","levodropropizine"
+        ],
+        "neg": ["antihypertensive","antiepileptic"]
+    },
+
+    # ——— Dạ dày ———
+    "stomach_pain": {
+        "aliases": ["đau dạ dày","đau thượng vị","khó tiêu","ợ nóng","trào ngược"],
+        "pos": [
+            "epigastric pain","stomach ache","gastric pain","indigestion","dyspepsia","heartburn",
+            "gastritis","peptic ulcer","duodenal ulcer","gastric ulcer","acid reflux","GERD",
+            "antacid","proton pump inhibitor","ppi","h2 blocker",
+            "omeprazole","pantoprazole","esomeprazole","rabeprazole","lansoprazole"
+        ],
+        "neg": ["antihypertensive","antiepileptic","acne","isotretinoin","benzoyl peroxide"]
+    },
+
+    # ——— Cơ – xương – khớp ———
+    "muscle_spasm": {
+        "aliases": ["đau cơ","co thắt cơ","giãn cơ","chuột rút"],
+        "pos": [
+            "muscular pain","pain due to muscle spasm","muscle spasm","muscle relaxation",
+            "muscle relaxant","tizanidine","baclofen","eperisone","tolperisone","thiocolchicoside"
+        ],
+        "neg": ["antihypertensive","antiepileptic"]
+    },
+
+    # ——— Nhiễm trùng ———
+    "bacterial_infection": {
+        "aliases": ["nhiễm khuẩn"],
+        "pos": [
+            "bacterial infection","antibiotic","amoxicillin","amoxicillin clavulanate","azithromycin","clarithromycin",
+            "ciprofloxacin","levofloxacin","moxifloxacin","cephalexin","cefuroxime","ceftriaxone","metronidazole"
+        ],
+        "neg": ["acne","isotretinoin","benzoyl peroxide"]
+    },
+    "fungal_skin": {
+        "aliases": ["nhiễm nấm da","hắc lào","lang ben"],
+        "pos": ["fungal skin infection","tinea","dermatophyte","clotrimazole","ketoconazole","terbinafine",
+                "miconazole","fluconazole","griseofulvin"],
+        "neg": []
+    },
+    "parasitic_infection": {
+        "aliases": ["nhiễm ký sinh trùng","giun","sán"],
+        "pos": ["parasitic infection","anthelmintic","albendazole","mebendazole","ivermectin","praziquantel"],
+        "neg": []
+    },
+
+    # ——— Da liễu (để loại trừ khi tìm “thuốc tim”) ———
+    "acne": {
+        "aliases": ["mụn","mụn trứng cá","acne"],
+        "pos": ["acne","isotretinoin","adapalene","benzoyl peroxide","clindamycin gel","tretinoin"],
+        "neg": []
+    },
+
+    # ——— TIM MẠCH ———
+    "cardio": {
+        "aliases": [
+            "thuốc tim","thuoc tim","tim mạch","thuốc tim mạch","tăng huyết áp","cao huyết áp",
+            "huyết áp cao","suy tim","đau thắt ngực","nhồi máu cơ tim","đột quỵ","bệnh tim"
+        ],
+        "pos": [
+            "hypertension","high blood pressure","antihypertensive",
+            "ace inhibitor","arb","beta blocker","calcium channel blocker","diuretic",
+            "telmisartan","losartan","valsartan","olmesartan","irbesartan",
+            "amlodipine","nifedipine","diltiazem","verapamil",
+            "atenolol","metoprolol","bisoprolol","carvedilol","nebivolol",
+            "hydrochlorothiazide","furosemide","spironolactone","indapamide",
+            "enalapril","lisinopril","perindopril","ramipril",
+            "ivabradine","nitroglycerin","isosorbide mononitrate","ranolazine",
+            "statin","atorvastatin","rosuvastatin","simvastatin",
+            "antiplatelet","aspirin","clopidogrel","ticagrelor",
+            "anticoagulant","warfarin","apixaban","rivaroxaban","dabigatran",
+            "heart failure","angina","myocardial infarction","stroke","arrhythmia","amiodarone","sacubitril"
+        ],
+        "neg": [
+            "acne","isotretinoin","benzoyl peroxide","fungal skin infection","tinea","clotrimazole",
+            "paracetamol","cold & flu","sneezing","allergic rhinitis"
+        ]
     },
 }
 
@@ -110,6 +212,45 @@ import re
 
 # Chỉ giữ 1 bộ quy tắc (rút gọn ở đây; bạn có thể giữ bộ dài hiện tại)
 USES_EN_VI = [
+    # 1) Dị ứng / hắt hơi / sổ mũi
+    (r"\bSneezing and (runny nose|nasal discharge|sổ mũi)\s+(due to|caused by)\s+allerg(y|ies)\b",
+     "hắt hơi và sổ mũi do dị ứng"),
+    (r"\bSneezing\b", "hắt hơi"),
+    (r"\bdue to allergies\b", "do dị ứng"),
+    (r"\ballerg(y|ies)\b", "dị ứng"),
+
+    # 2) Nhiễm khuẩn / nấm / ký sinh trùng
+    (r"\bFungal skin infection(s)?\b", "nhiễm nấm da"),
+    (r"\bBacterial (skin )?infection(s)?\b", "nhiễm khuẩn"),
+    (r"\bParasitic infection(s)?\b", "nhiễm ký sinh trùng"),
+
+    # 3) Tiêu chảy nhiễm khuẩn (đặt trước rule Diarrhea chung)
+    (r"\bAcute infectious diarrh(o)?ea\b", "tiêu chảy nhiễm khuẩn cấp"),
+    (r"\bInfectious diarrh(o)?ea\b", "tiêu chảy nhiễm khuẩn"),
+    (r"\bBacterial diarrh(o)?ea\b", "tiêu chảy do vi khuẩn"),
+    (r"\bViral diarrh(o)?ea\b", "tiêu chảy do vi rút"),
+    (r"\bDiarrh(o)?ea due to (infection|bacteria|virus)\b", "tiêu chảy do nhiễm trùng"),
+
+    # 4) Cơ – xương – khớp / giãn cơ
+    (r"\bPain due to muscle spasm(s)?\b", "đau do co thắt cơ"),
+    (r"\bMuscular pain\b", "đau cơ"),
+    (r"\bMuscle spasm(s)?\b", "co thắt cơ"),
+    (r"\bMuscle relaxation\b", "giãn cơ"),
+    (r"\bMuscle relaxant(s)?\b", "thuốc giãn cơ"),
+
+    # 5) Da liễu
+    (r"\bAcne\b", "mụn trứng cá"),
+
+    # 6) Tiền phẫu ruột (đủ dị bản)
+    (r"\bIntestine\s+preparation\b(.*?before (any )?surgery)?", "chuẩn bị ruột trước phẫu thuật"),
+    (r"\bIntestin(al|e)\s+preparation\b(.*?before (any )?surgery)?", "chuẩn bị ruột trước phẫu thuật"),
+    (r"\bBowel\s+preparation\b(.*?before (any )?surgery)?", "chuẩn bị ruột trước phẫu thuật"),
+    (r"\bPreoperative (bowel|intestinal) preparation\b", "chuẩn bị ruột trước phẫu thuật"),
+
+    # 7) Thiếu hụt dinh dưỡng
+    (r"\bNutritional deficienc(y|ies)\b", "thiếu hụt dinh dưỡng"),
+    (r"\bNutrient deficienc(y|ies)\b", "thiếu hụt dinh dưỡng"),
+
     # Khung câu
     (r"\bTreatment of\b", "Điều trị"),
     (r"\bRelief of\b", "Giảm"),
@@ -149,11 +290,39 @@ USES_EN_VI = [
     (r"\bNasal congestion\b", "nghẹt mũi"),
     (r"\bHeadache\b", "đau đầu"),
     (r"\bMigraine\b", "đau nửa đầu"),
+    # --- Tim mạch (ưu tiên cụ thể > tổng quát) ---
+    (r"\bHypertension\b(\s*\(high blood pressure\))?", "tăng huyết áp"),
+    (r"\bHigh blood pressure\b", "cao huyết áp"),
+    (r"\bAngina\b(\s*\(heart[- ]related chest pain\))?", "đau thắt ngực"),
+    (r"\bArrhythmia\b", "rối loạn nhịp tim"),
+    (r"\bHeart attack\b", "nhồi máu cơ tim"),
+    # (đã có) (r"\bMigraine\b","đau nửa đầu"),
+
+    # --- Dạ dày - thực quản ---
+    (r"\bHeartburn\b", "ợ nóng"),
+    (r"\bGastro[- ]?o?esophageal reflux disease\b(\s*\(Acid reflux\))?", "trào ngược dạ dày thực quản"),
+    (r"\bGERD\b", "trào ngược dạ dày thực quản"),
+    (r"\bGORD\b", "trào ngược dạ dày thực quản"),
+    (r"\bAcid reflux\b", "trào ngược dạ dày thực quản"),
+    (r"\bPeptic ulcer disease\b", "loét dạ dày tá tràng"),
+    (r"\bZollinger[-–— ]Ellison syndrome\b", "hội chứng Zollinger–Ellison")
 ]
 
-HEAD_VERBS = ("Điều trị", "Giảm", "Phòng ngừa", "Kiểm soát", "Dự phòng", "Hỗ trợ điều trị", "Hạ", "Làm giảm", "Làm dịu", "Liệu pháp")
+HEAD_VERBS = (
+    "Điều trị","Giảm","Phòng ngừa","Kiểm soát","Dự phòng","Hỗ trợ điều trị",
+    "Hạ","Làm giảm","Làm dịu","Liệu pháp","Giãn"
+)
 
-COND_TERMS = ["tiêu chảy","táo bón","sốt","ho","sổ mũi","nghẹt mũi","đau đầu","đau nửa đầu","đau họng","đau răng","đau bụng","đau dạ dày","đau thượng vị","khó tiêu","viêm dạ dày","viêm","tăng huyết áp","đái tháo đường type 2","nhồi máu cơ tim","đột quỵ","động kinh","co giật","trào ngược dạ dày thực quản","loét dạ dày tá tràng","đau thắt ngực","đau thần kinh","mỡ máu cao","viêm mũi dị ứng","hắt hơi","cảm lạnh","ợ nóng","ho khan","gàu","nhiễm khuẩn da","nhiễm nấm da","cục máu đông","rối loạn da","lo âu","thiếu hụt dinh dưỡng","rối loạn mắt","nám da","vẩy nến","thải ghép cơ quan","phù nề","rối loạn cương dương""tiêu chảy nhiễm khuẩn",]
+COND_TERMS = ["tiêu chảy","tiêu chảy nhiễm khuẩn","táo bón","sốt","ho","sổ mũi","hắt hơi",
+              "nghẹt mũi","đau đầu","đau nửa đầu","đau họng","đau răng","đau bụng",
+              "đau dạ dày","đau thượng vị","khó tiêu","viêm dạ dày","viêm",
+              "nhiễm khuẩn","nhiễm nấm da","nhiễm ký sinh trùng",
+              "đau cơ","co thắt cơ","giãn cơ",
+              "thiếu hụt dinh dưỡng","trào ngược dạ dày thực quản","loét dạ dày tá tràng",
+              "tăng huyết áp","đái tháo đường type 2","mỡ máu cao",
+              "tăng huyết áp","đau thắt ngực","rối loạn nhịp tim","nhồi máu cơ tim",
+              "ợ nóng","trào ngược dạ dày thực quản","loét dạ dày tá tràng","hội chứng zollinger–ellison"
+]
 
 def normalize_uses_en(txt: str) -> str:
     if not isinstance(txt, str): return ""
@@ -185,12 +354,15 @@ def vi_translate_uses(en_text: str) -> str:
     t = re.sub(r'(?i)\binfectious\s+tiêu chảy\b', 'tiêu chảy nhiễm khuẩn', t)
     t = re.sub(r'(?i)\btiêu chảy\s+nhiễm trùng\b', 'tiêu chảy nhiễm khuẩn', t)
     t = re.sub(r'(?i)\bnutritional\s+deficiencies\b', 'thiếu hụt dinh dưỡng', t)
-
-    # chốt hạ cực phổ biến
+    t = re.sub(r'(?i)\binfectious\s+tiêu chảy\b', 'tiêu chảy nhiễm khuẩn', t)
+    t = re.sub(r'(?i)\btiêu chảy\s+nhiễm trùng\b', 'tiêu chảy nhiễm khuẩn', t)
+    t = re.sub(r'(?i)\bnutritional\s+deficiencies\b', 'thiếu hụt dinh dưỡng', t)
+    t = re.sub(r'(?i)\bhắt hơi and sổ mũi\b', 'hắt hơi và sổ mũi', t)
     t = re.sub(r'(?i)\bdiarrh(o)?ea\b', 'tiêu chảy', t)
     t = re.sub(r'(?i)\bconstipation\b', 'táo bón', t)
     t = re.sub(r'(?i)\bfever\b', 'sốt', t)
-
+    t = re.sub(r'\s*\((acid reflux|heart[- ]related chest pain|high blood pressure)\)\s*', '', t, flags=re.I)
+    t = re.sub(r'\s+', ' ', t).strip()
     t = _add_default_verb_if_missing(t)
     t = re.sub(r'\s+',' ', t).strip()
     return (t[:1].upper()+t[1:]) if t else t
