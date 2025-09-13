@@ -502,7 +502,7 @@ def semantic_search_page(collections, model):
     """Trang 1: Tìm kiếm"""
     st.markdown('<div class="main-header">🔍 Tìm kiếm</div>', unsafe_allow_html=True)
     
-    st.markdown("### Tìm thuốc bằng mô tả ngôn ngữ tự nhiên")
+    st.markdown("### Tìm thuốc bằng mô tả và thành phần")
     
     # Ô tìm kiếm
     col1, col2 = st.columns([4, 1])
