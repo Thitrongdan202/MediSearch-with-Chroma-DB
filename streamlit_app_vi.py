@@ -146,8 +146,8 @@ def format_similarity(distance: float) -> str:
     return f"{(1 - distance) * 100:.1f}%"
 
 def semantic_search_page(collections, model):
-    """Trang 1: Tìm kiếm Ngữ nghĩa"""
-    st.markdown('<div class="main-header">🔍 Tìm kiếm Ngữ nghĩa</div>', unsafe_allow_html=True)
+    """Trang 1: Tìm kiếm"""
+    st.markdown('<div class="main-header">🔍 Tìm kiếm</div>', unsafe_allow_html=True)
     
     st.markdown("### Tìm thuốc bằng mô tả ngôn ngữ tự nhiên")
     
