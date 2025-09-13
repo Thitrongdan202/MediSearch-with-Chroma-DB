@@ -16,6 +16,168 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
+# Symptom
+def _lc(x): return (x or "").lower()
+def _has_any(text, kws): return any(k in text for k in kws)
+
+SYMPTOM_MAP = {
+    "constipation": {
+        "aliases": ["táo bón"],
+        "pos": ["constipation","laxative","stool softener","bulk-forming","osmotic","stimulant laxative",
+                "bisacodyl","senna","sennoside","lactulose","polyethylene glycol","macrogol",
+                "psyllium","ispaghula","docusate","glycerin","magnesium hydroxide"],
+        "neg": ["hypertension","high blood pressure","antihypertensive",
+                "telmisartan","amlodipine","losartan","valsartan","phenytoin","carbamazepine","valproate"]
+    },
+    "fever": {  # hạ sốt / giảm đau
+        "aliases": ["sốt","hạ sốt","giảm sốt","đau nhức","giảm đau","panadol","paradon","paracetamol"],
+        "pos": ["fever","antipyretic","analgesic","pain reliever","paracetamol","acetaminophen",
+                "ibuprofen","naproxen","aspirin","caffeine","cold & flu"],
+        "neg": ["antiepileptic","antihypertensive","phenytoin","carbamazepine","telmisartan"]
+    },
+    "diarrhea": {
+        "aliases": ["tiêu chảy","đi ngoài lỏng","phân lỏng"],
+        "pos": ["diarrhea","antidiarrheal","loperamide","racecadotril","bismuth subsalicylate",
+                "oral rehydration salts","ors","rehydration","zinc"],
+        "neg": ["constipation","laxative","antihypertensive","antiepileptic"]
+    },
+    "runny_nose": {
+        "aliases": ["sổ mũi","xổ mũi","chảy mũi","ngạt mũi","viêm mũi","cảm lạnh"],
+        "pos": ["runny nose","rhinitis","cold","antihistamine","decongestant","cetirizine","loratadine",
+                "fexofenadine","chlorpheniramine","diphenhydramine","phenylephrine","pseudoephedrine",
+                "oxymetazoline","xylometazoline","azelastine","guaifenesin","bromhexine","ambroxol"],
+        "neg": ["antihypertensive","antiepileptic"]
+    },
+    "headache": {  # vẫn giữ nhóm đau đầu/migraine
+        "aliases": ["đau đầu","nhức đầu","migraine","đau nửa đầu"],
+        "pos": ["headache","migraine","analgesic","pain reliever","paracetamol","acetaminophen",
+                "ibuprofen","naproxen","diclofenac","aspirin","triptan","sumatriptan"],
+        "neg": ["antiepileptic","antihypertensive","phenytoin","carbamazepine","valproate","telmisartan"]
+    },
+}
+
+def detect_symptoms(q: str):
+    ql = _lc(q)
+    hits = []
+    for key, cfg in SYMPTOM_MAP.items():
+        if any(al in ql for al in cfg["aliases"] + [key]):
+            hits.append(key)
+    return hits
+
+def detect_symptom(q: str):
+    syms = detect_symptoms(q)
+    return syms[0] if syms else None
+
+def symptom_search_rows(symptom: str, collections, model, top_each=12):
+    cfg = SYMPTOM_MAP[symptom]
+    queries = [" ".join(cfg["pos"]), " ".join(cfg["aliases"]), " ".join(cfg["pos"][:6])]
+    seen, rows = set(), []
+    for q in queries:
+        hits = search_medicines(collections["drugs_main"], q, model, n_results=top_each)
+        metas = (hits or {}).get("metadatas", [[]]); dists = (hits or {}).get("distances", [[]])
+        if not metas or not metas[0]: continue
+        for i, m in enumerate(metas[0]):
+            if not isinstance(m, dict): continue
+            name = m.get("medicine_name") or ""
+            uses = m.get("uses") or ""
+            comp = m.get("composition") or m.get("ingredients") or ""
+            blob = _lc(f"{name} {uses} {comp}")
+            if _has_any(blob, cfg["neg"]):  # loại sai nhóm
+                continue
+            key = _lc(name) or f"{i}-{hash(blob)}"
+            if key in seen: continue
+            seen.add(key)
+            dist = dists[0][i] if dists and dists[0] and i < len(dists[0]) else None
+            rows.append((m, dist))
+    return rows
+
+def rerank_symptom(symptom: str, rows):
+    cfg = SYMPTOM_MAP[symptom]
+    pos = [_lc(x) for x in cfg["pos"]]
+    out = []
+    for m, dist in rows:
+        uses = _lc(m.get("uses") or "")
+        comp = _lc(m.get("composition") or m.get("ingredients") or "")
+        base = 0.5 if not isinstance(dist,(int,float)) else max(0.0, min(1.0, 1-float(dist)))
+        boost = 0.0
+        if _has_any(uses, pos): boost += 0.35
+        if _has_any(comp, pos): boost += 0.35
+        out.append((base+boost, m, dist))
+    out.sort(key=lambda x: x[0], reverse=True)
+    return out
+
+import re
+
+# Chỉ giữ 1 bộ quy tắc (rút gọn ở đây; bạn có thể giữ bộ dài hiện tại)
+USES_EN_VI = [
+    (r"\bTreatment of\b", "Điều trị"),
+    (r"\bRelief of\b", "Giảm"),
+    (r"\bPrevention of\b", "Phòng ngừa"),
+    (r"\bManagement of\b", "Kiểm soát"),
+    (r"\bProphylaxis of\b", "Dự phòng"),
+    (r"\bAs an adjunct to\b", "Hỗ trợ điều trị"),
+    (r"\bAdjunct\b", "Hỗ trợ điều trị"),
+    (r"\bIndicated for\b", "Chỉ định cho"),
+    (r"\bUsed for\b", "Dùng cho"),
+
+    # triệu chứng hay gặp
+    (r"\bDiarrh(o)?ea\b", "tiêu chảy"),
+    (r"\bConstipation\b", "táo bón"),
+    (r"\bFever\b", "sốt"),
+    (r"\bCough\b", "ho"),
+    (r"\bRunny nose\b", "sổ mũi"),
+    (r"\bNasal congestion\b", "nghẹt mũi"),
+    (r"\bHeadache\b", "đau đầu"),
+    (r"\bMigraine\b", "đau nửa đầu"),
+
+    # cụm bạn gặp trong data
+    (r"\bPain relief\b", "giảm đau"),
+    (r"\bFever relief\b", "giảm sốt"),
+]
+
+HEAD_VERBS = ("Điều trị", "Giảm", "Phòng ngừa", "Kiểm soát", "Dự phòng", "Hỗ trợ điều trị", "Hạ", "Làm giảm", "Làm dịu", "Liệu pháp")
+
+COND_TERMS = ["tiêu chảy","táo bón","sốt","ho","sổ mũi","nghẹt mũi","đau đầu","đau nửa đầu","đau họng","đau răng","đau bụng","đau dạ dày","đau thượng vị","khó tiêu","viêm dạ dày","viêm","tăng huyết áp","đái tháo đường type 2","nhồi máu cơ tim","đột quỵ","động kinh","co giật","trào ngược dạ dày thực quản","loét dạ dày tá tràng","đau thắt ngực","đau thần kinh","mỡ máu cao","viêm mũi dị ứng","hắt hơi","cảm lạnh","ợ nóng","ho khan","gàu","nhiễm khuẩn da","nhiễm nấm da","cục máu đông","rối loạn da","lo âu","thiếu hụt dinh dưỡng","rối loạn mắt","nám da","vẩy nến","thải ghép cơ quan","phù nề","rối loạn cương dương"]
+
+def normalize_uses_en(txt: str) -> str:
+    if not isinstance(txt, str): return ""
+    t = txt
+    # tách các mệnh đề bị dính
+    t = re.sub(r'(?<=stroke)Treatment', '. Treatment', t, flags=re.I)
+    t = re.sub(r'(?i)([A-Za-z%)])\s*(?=(Treatment|Prevention|Relief|Management|Control|Prophylaxis|Indicated|Used) of\b)', r'\1. ', t)
+    t = re.sub(r'(?i)([A-Za-z%)])\s*(?=(Intestin(?:al|e)?\s+preparation|Bowel\s+preparation|Pain relief|Fever relief))', r'\1. ', t)
+    return re.sub(r'\s+',' ', t).strip()
+
+def _add_default_verb_if_missing(t: str) -> str:
+    s = t.strip()
+    if not s: return s
+    if any(re.match(rf"(?i)^{re.escape(v)}\b", s) for v in HEAD_VERBS): return s
+    if any(re.match(rf"(?i)^{re.escape(cond)}\b", s) for cond in COND_TERMS): return f"Điều trị {s}"
+    return s
+
+def vi_translate_uses(en_text: str) -> str:
+    t = normalize_uses_en(en_text or "")
+    for pat, repl in USES_EN_VI:
+        t = re.sub(pat, repl, t, flags=re.I)
+
+    # 🔒 Guard rails – bắt mọi dị bản còn sót
+    t = re.sub(r'(?i)\bintestin(?:al|e)?\s+preparation(?:\s+before(?:\s+any)?\s+surgery)?', 'chuẩn bị ruột trước phẫu thuật', t)
+    t = re.sub(r'(?i)\bbowel\s+preparation(?:\s+before(?:\s+any)?\s+surgery)?', 'chuẩn bị ruột trước phẫu thuật', t)
+    t = re.sub(r'(?i)\bpain\s+relief\b', 'giảm đau', t)
+    t = re.sub(r'(?i)\bfever\s+relief\b', 'giảm sốt', t)
+    t = re.sub(r'(?i)\btreatment of\b', 'Điều trị', t)
+
+    # chốt hạ cực phổ biến
+    t = re.sub(r'(?i)\bdiarrh(o)?ea\b', 'tiêu chảy', t)
+    t = re.sub(r'(?i)\bconstipation\b', 'táo bón', t)
+    t = re.sub(r'(?i)\bfever\b', 'sốt', t)
+
+    t = _add_default_verb_if_missing(t)
+    t = re.sub(r'\s+',' ', t).strip()
+    return (t[:1].upper()+t[1:]) if t else t
+
+
+
 # Load environment variables from .env file
 load_dotenv()
 # Cấu hình trang
@@ -174,8 +336,11 @@ def semantic_search_page(collections, model):
                 index=0
             )
     # translate query
-    query = translate_query_openai(query) if query else query
-    if search_button and query:
+    # GIỮ nguyên biến 'query' từ ô nhập để nhận diện triệu chứng
+    orig_vi = query
+    symptom = detect_symptom(orig_vi or "")
+
+    if search_button and orig_vi:
         with st.spinner("Đang tìm kiếm thuốc..."):
             # Chọn collection
             if search_collection == "Cơ sở dữ liệu chính":
@@ -184,39 +349,72 @@ def semantic_search_page(collections, model):
                 collection = collections['drugs_composition']
             else:
                 collection = collections['drugs_side_effects']
-            
-            results = search_medicines(collection, query, model, num_results)
-            if results and results['metadatas'][0]:
-                st.success(f"Tìm thấy {len(results['metadatas'][0])} thuốc phù hợp với tìm kiếm của bạn")
-                
-                # Hiển thị kết quả
-                for i, metadata in enumerate(results['metadatas'][0]):
-                    distance = results['distances'][0][i]
-                    similarity = format_similarity(distance)
-                    
-                    with st.container():
+
+            if symptom and collection == collections['drugs_main']:
+                rows = symptom_search_rows(symptom, collections, model, top_each=num_results * 2)
+                ranked = rerank_symptom(symptom, rows)[:num_results]
+                st.success(f"Tìm thấy {len(ranked)} thuốc phù hợp với triệu chứng của bạn")
+
+                for score, metadata, dist in ranked:
+                    similarity = f"{(float(score) * 100):.1f}%"
+                    name = metadata.get('medicine_name', '(Không rõ tên)')
+                    comp = (metadata.get('composition') or metadata.get('ingredients', '')) or ''
+                    uses_en = normalize_uses_en(metadata.get('uses', ''))
+                    uses_vi = vi_translate_uses(uses_en) if uses_en else ''
+                    manu = metadata.get('manufacturer', 'Không rõ')
+
+                    st.markdown(f"""
+                    <div class="drug-card">
+                      <h4>💊 {name}</h4>
+                      <p><strong>Độ tương đồng:</strong> <span class="similarity-score">{similarity}</span></p>
+                      <p><strong>🧪 Thành phần:</strong> {comp[:100]}...</p>
+                      <p><strong>🎯 Công dụng (VI):</strong> {uses_vi or '(chưa có dữ liệu)'}{"<br><span style='opacity:.7'>EN: " + uses_en + "</span>" if uses_en and uses_vi and uses_vi.lower() != uses_en.lower() else ""}</p>
+                      <p><strong>🏭 Hãng sản xuất:</strong> {manu}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Đánh giá xuất sắc", f"{metadata.get('excellent_review', 0)}%")
+                    c2.metric("Đánh giá trung bình", f"{metadata.get('average_review', 0)}%")
+                    c3.metric("Đánh giá kém", f"{metadata.get('poor_review', 0)}%")
+                    st.markdown("---")
+
+            else:
+                # Chỉ dịch EN khi tìm ở CSDL chính và không phải triệu chứng
+                q_for_search = translate_query_openai(orig_vi) if (
+                            collection == collections['drugs_main'] and not symptom) else orig_vi
+
+                results = search_medicines(collection, q_for_search, model, num_results)
+                if results and results['metadatas'][0]:
+                    st.success(f"Tìm thấy {len(results['metadatas'][0])} thuốc phù hợp với tìm kiếm của bạn")
+                    for i, metadata in enumerate(results['metadatas'][0]):
+                        distance = results['distances'][0][i]
+                        similarity = format_similarity(distance)
+                        name = metadata.get('medicine_name', '(Không rõ tên)')
+                        comp = (metadata.get('composition') or metadata.get('ingredients', '')) or ''
+                        uses_en = normalize_uses_en(metadata.get('uses', ''))
+                        uses_vi = vi_translate_uses(uses_en) if uses_en else ''
+                        manu = metadata.get('manufacturer', 'Không rõ')
+
                         st.markdown(f"""
                         <div class="drug-card">
-                            <h4>💊 {metadata['medicine_name']}</h4>
-                            <p><strong>Độ tương đồng:</strong> <span class="similarity-score">{similarity}</span></p>
-                            <p><strong>🧪 Thành phần:</strong> {metadata.get('composition', '')[:100]}...</p>
-                            <p><strong>🎯 Công dụng:</strong> {metadata.get('uses', '')[:150]}...</p>
-                            <p><strong>🏭 Hãng sản xuất:</strong> {metadata.get('manufacturer', '')}</p>
+                          <h4>💊 {name}</h4>
+                          <p><strong>Độ tương đồng:</strong> <span class="similarity-score">{similarity}</span></p>
+                          <p><strong>🧪 Thành phần:</strong> {comp[:100]}...</p>
+                          <p><strong>🎯 Công dụng (VI):</strong> {uses_vi or '(chưa có dữ liệu)'}{"<br><span style='opacity:.7'>EN: " + uses_en + "</span>" if uses_en and uses_vi and uses_vi.lower() != uses_en.lower() else ""}</p>
+                          <p><strong>🏭 Hãng sản xuất:</strong> {manu}</p>
                         </div>
                         """, unsafe_allow_html=True)
-                        
-                        # Chỉ số đánh giá
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Đánh giá xuất sắc", f"{metadata.get('excellent_review', 0)}%", delta=None)
-                        with col2:
-                            st.metric("Đánh giá trung bình", f"{metadata.get('average_review', 0)}%", delta=None)
-                        with col3:
-                            st.metric("Đánh giá kém", f"{metadata.get('poor_review', 0)}%", delta=None)
 
+                        c1, c2, c3 = st.columns(3)
+                        c1.metric("Đánh giá xuất sắc", f"{metadata.get('excellent_review', 0)}%")
+                        c2.metric("Đánh giá trung bình", f"{metadata.get('average_review', 0)}%")
+                        c3.metric("Đánh giá kém", f"{metadata.get('poor_review', 0)}%")
                         st.markdown("---")
-            else:
-                st.warning("Không tìm thấy thuốc nào phù hợp với tiêu chí tìm kiếm của bạn.")
+                else:
+                    st.warning("Không tìm thấy thuốc nào phù hợp với tiêu chí tìm kiếm của bạn.")
+    return
+
 
 def drug_substitution_page(collections, model):
     """Trang 2: Thay thế Thuốc"""
@@ -761,7 +959,7 @@ def dashboard_overview_page(collections):
         fig_cat.update_traces(
             hovertemplate="<b>Danh mục:</b> %{x}<br><b>Số lượng:</b> %{y}<extra></extra>"
         )
-        
+
         st.plotly_chart(fig_cat, use_container_width=True)
         
     except Exception as e:
