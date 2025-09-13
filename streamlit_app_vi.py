@@ -718,8 +718,9 @@ def dashboard_overview_page(collections):
 
             fig_review.update_traces(
                 textinfo="percent",
-                hovertemplate="<b>%{label}</b>: %{percent:.1%} (n=%{value})<extra></extra>"
+                hovertemplate="<b>%{label}</b>: %{percent}<extra></extra>"
             )
+
             st.plotly_chart(fig_review, use_container_width=True)
         
         # Phân tích danh mục thuốc
