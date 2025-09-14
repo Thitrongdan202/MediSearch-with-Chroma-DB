@@ -15,6 +15,23 @@ from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
+import inspect
+
+def run_page(fn, collections, model):
+    try:
+        params = [
+            p for p in inspect.signature(fn).parameters.values()
+            if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        if len(params) >= 2:
+            return fn(collections, model)
+        elif len(params) == 1:
+            return fn(collections)
+        else:
+            return fn()
+    except Exception:
+        # fallback mặc định
+        return fn(collections, model)
 
 # Symptom
 def _lc(x): return (x or "").lower()
@@ -262,6 +279,16 @@ USES_EN_VI = [
     (r"\bIndicated for\b", "Chỉ định cho"),
     (r"\bUsed for\b", "Dùng cho"),
 
+    # --- Viêm loét đại tràng / IBS ---
+    (r"\bUlcerative colitis\b", "viêm loét đại tràng"),
+    (r"\bIrritable bowel syndrome\b", "hội chứng ruột kích thích"),
+    (r"\bIBS\b", "hội chứng ruột kích thích"),
+
+    # --- Tiêu chảy do rotavirus (đặt trước rule Diarrhea chung) ---
+    (r"\bRotaviral diarrh(o)?ea\b", "tiêu chảy do rotavirus"),
+    (r"\bDiarrh(o)?ea due to rotavirus\b", "tiêu chảy do rotavirus"),
+    (r"\bdue to rotavirus\b", "do rotavirus"),
+
     # --- tiêu chảy nhiễm khuẩn & dị bản ---
     (r"\bAcute infectious diarrh(o)?ea\b", "tiêu chảy nhiễm khuẩn cấp"),
     (r"\bInfectious diarrh(o)?ea\b", "tiêu chảy nhiễm khuẩn"),
@@ -279,6 +306,36 @@ USES_EN_VI = [
     (r"\bNutritional deficienc(y|ies)\b", "thiếu hụt dinh dưỡng"),
     (r"\bNutrient deficienc(y|ies)\b", "thiếu hụt dinh dưỡng"),
 
+    # --- Nhiễm trùng hô hấp / thần kinh ---
+    (r"\bPneumonia\b", "viêm phổi"),
+    (r"\bCommunity[- ]acquired pneumonia\b", "viêm phổi mắc phải cộng đồng"),
+    (r"\bHospital[- ]acquired pneumonia\b", "viêm phổi bệnh viện"),
+
+    (r"\bMeningitis\b", "viêm màng não"),
+    (r"\bBacterial meningitis\b", "viêm màng não do vi khuẩn"),
+    (r"\bViral meningitis\b", "viêm màng não do vi rút"),
+
+    # --- Nhiễm trùng máu ---
+    (r"\bBloodstream infection(s)?\b", "nhiễm trùng máu"),
+    (r"\bBlood infection(s)?\b", "nhiễm trùng máu"),
+    (r"\bBacter(ae)?mia\b", "nhiễm khuẩn huyết"),
+    (r"\bSeptic(ae)?mia\b", "nhiễm trùng huyết"),
+    (r"\bSepsis\b", "nhiễm trùng huyết"),
+
+    # --- Nhiễm trùng tai ---
+    (r"\bEar infection(s)?\b", "nhiễm trùng tai"),
+    (r"\bOtitis media\b", "viêm tai giữa"),
+    (r"\bAcute otitis media\b|\bAOM\b", "viêm tai giữa cấp"),
+    (r"\bOtitis externa\b", "viêm ống tai ngoài"),
+
+    # --- Tim mạch - thần kinh ---
+    (r"\bStroke\b|\bCerebrovascular accident\b", "đột quỵ"),
+    (r"\bHeart failure\b", "suy tim"),
+    (r"\bCongestive heart failure\b", "suy tim sung huyết"),
+
+    # --- Ký sinh trùng da ---
+    (r"\bScabies\b", "ghẻ"),
+    (r"\bSarcoptes scabiei\b", "ghẻ (Sarcoptes scabiei)"),
     # Triệu chứng phổ biến
     (r"\bPain relief\b", "giảm đau"),
     (r"\bFever relief\b", "giảm sốt"),
@@ -320,8 +377,11 @@ COND_TERMS = ["tiêu chảy","tiêu chảy nhiễm khuẩn","táo bón","sốt",
               "đau cơ","co thắt cơ","giãn cơ",
               "thiếu hụt dinh dưỡng","trào ngược dạ dày thực quản","loét dạ dày tá tràng",
               "tăng huyết áp","đái tháo đường type 2","mỡ máu cao",
-              "tăng huyết áp","đau thắt ngực","rối loạn nhịp tim","nhồi máu cơ tim",
+              "đau thắt ngực","rối loạn nhịp tim","nhồi máu cơ tim",
               "ợ nóng","trào ngược dạ dày thực quản","loét dạ dày tá tràng","hội chứng zollinger–ellison"
+              "viêm loét đại tràng", "hội chứng ruột kích thích", "tiêu chảy do rotavirus",
+              "viêm phổi","viêm màng não","nhiễm trùng máu",
+              "nhiễm khuẩn huyết","nhiễm trùng huyết","nhiễm trùng tai","viêm tai giữa","đột quỵ","suy tim","ghẻ"
 ]
 
 def normalize_uses_en(txt: str) -> str:
@@ -331,6 +391,7 @@ def normalize_uses_en(txt: str) -> str:
     t = re.sub(r'(?<=stroke)Treatment', '. Treatment', t, flags=re.I)
     t = re.sub(r'(?i)([A-Za-z%)])\s*(?=(Treatment|Prevention|Relief|Management|Control|Prophylaxis|Indicated|Used) of\b)', r'\1. ', t)
     t = re.sub(r'(?i)([A-Za-z%)])\s*(?=(Intestin(?:al|e)?\s+preparation|Bowel\s+preparation|Pain relief|Fever relief))', r'\1. ', t)
+    t = re.sub(r'\s*&\s*', ', ', t)
     return re.sub(r'\s+',' ', t).strip()
 
 def _add_default_verb_if_missing(t: str) -> str:
@@ -365,6 +426,12 @@ def vi_translate_uses(en_text: str) -> str:
     t = re.sub(r'\s+', ' ', t).strip()
     t = _add_default_verb_if_missing(t)
     t = re.sub(r'\s+',' ', t).strip()
+    t = re.sub(r'(?i)\bulcerative colitis\b', 'viêm loét đại tràng', t)
+    t = re.sub(r'(?i)\birritable bowel syndrome\b', 'hội chứng ruột kích thích', t)
+    t = re.sub(r'(?i)\bibs\b', 'hội chứng ruột kích thích', t)
+    t = re.sub(r'(?i)\brotaviral diarrh(o)?ea\b', 'tiêu chảy do rotavirus', t)
+    t = re.sub(r'(?i)\bdiarrh(o)?ea due to rotavirus\b', 'tiêu chảy do rotavirus', t)
+    t = re.sub(r'(?i)\bdue to rotavirus\b', 'do rotavirus', t)
     return (t[:1].upper()+t[1:]) if t else t
 
 
@@ -609,7 +676,7 @@ def semantic_search_page(collections, model):
 
 def drug_substitution_page(collections, model):
     """Trang 2: Thay thế Thuốc"""
-    st.markdown('<div class="main-header">🔄 Thay thế Thuốc</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"> Thay thế Thuốc</div>', unsafe_allow_html=True)
     
     st.markdown("### Tìm thuốc thay thế có tác dụng tương tự")
     
@@ -680,11 +747,11 @@ def drug_substitution_page(collections, model):
                         col1, col2 = st.columns([3, 1])
                         with col1:
                             st.markdown(f"""
-                            **💊 {alt.get('name')}**  
+                            ** {alt.get('name')}**  
                             *Độ tương đồng: {alt.get('similarity'):.1f}%*  
-                            🧪 {alt.get('composition')[:80]}...  
-                            🎯 {alt.get('uses')[:100]}...  
-                            🏭 {alt.get('manufacturer')}
+                             {alt.get('composition')[:80]}...  
+                             {alt.get('uses')[:100]}...  
+                             {alt.get('manufacturer')}
                             """)
                         with col2:
                             st.metric("Đánh giá tốt", f"{alt.get('excellent_review',0)}%")
@@ -699,7 +766,7 @@ def drug_substitution_page(collections, model):
 
 def side_effects_analysis_page(collections):
     """Trang 3: Phân tích Tác dụng Phụ"""
-    st.markdown('<div class="main-header">⚠️ Phân tích Tác dụng Phụ & Tương tác</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"> Phân tích Tác dụng Phụ & Tương tác</div>', unsafe_allow_html=True)
     
     st.markdown("### Phân tích tác dụng phụ tiềm ẩn và tương tác thuốc")
     
@@ -728,10 +795,10 @@ def side_effects_analysis_page(collections):
                 st.markdown(f"{i}. **{med}**")
             
             # Phân tích giả lập (trong thực tế, bạn sẽ phân tích tương tác thực)
-            st.markdown("### ⚠️ Tương tác Tiềm ẩn:")
+            st.markdown("### ️ Tương tác Tiềm ẩn:")
             
             if len(selected_medicines) > 1:
-                st.warning("⚠️ Phát hiện nhiều thuốc - vui lòng tham khảo ý kiến bác sĩ")
+                st.warning(" Phát hiện nhiều thuốc - vui lòng tham khảo ý kiến bác sĩ")
                 
                 # Phân tích tác dụng phụ giả lập
                 common_side_effects = ["Buồn nôn", "Chóng mặt", "Đau đầu", "Mệt mỏi", "Đau dạ dày"]
@@ -787,7 +854,7 @@ def chatbot_page(collections, model):
     """
     import re
 
-    st.markdown('<div class="main-header">💬 Chatbot Y tế Q&A</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"> Chatbot Y tế Q&A</div>', unsafe_allow_html=True)
     st.markdown("### Hỏi đáp về thuốc và sức khỏe bằng ngôn ngữ tự nhiên")
 
     # --- hiển thị lịch sử
@@ -929,7 +996,7 @@ def chatbot_page(collections, model):
 
 def manufacturer_analytics_page(collections):
     """Trang 5: Phân tích Nhà sản xuất"""
-    st.markdown('<div class="main-header">🏭 Phân tích Nhà sản xuất</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"> Phân tích Nhà sản xuất</div>', unsafe_allow_html=True)
     
     st.markdown("### Phân tích các công ty dược phẩm")
     
@@ -1029,7 +1096,7 @@ def manufacturer_analytics_page(collections):
 
 def dashboard_overview_page(collections):
     """Trang 6: Tổng quan Dashboard"""
-    st.markdown('<div class="main-header">📊 Tổng quan Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"> Tổng quan Dashboard</div>', unsafe_allow_html=True)
     
     st.markdown("### Tổng quan Hệ thống và Thống kê")
     
@@ -1073,7 +1140,7 @@ def dashboard_overview_page(collections):
         
         with col1:
             # Top nhà sản xuất
-            st.markdown("### 🏭 Top 10 Nhà sản xuất")
+            st.markdown("###  Top 10 Nhà sản xuất")
             top_mfrs = medicines_df['manufacturer'].value_counts().head(10)
 
             fig_mfr = px.bar(
@@ -1090,7 +1157,7 @@ def dashboard_overview_page(collections):
         
         with col2:
             # Phân bố đánh giá
-            st.markdown("### ⭐ Phân bố Điểm Đánh giá")
+            st.markdown("###  Phân bố Điểm Đánh giá")
             
             # Tạo các danh mục đánh giá
             review_categories = []
@@ -1120,7 +1187,7 @@ def dashboard_overview_page(collections):
             st.plotly_chart(fig_review, use_container_width=True)
         
         # Phân tích danh mục thuốc
-        st.markdown("### 💊 Phân tích Danh mục Thuốc")
+        st.markdown("###  Phân tích Danh mục Thuốc")
         
         # Trích xuất danh mục từ uses (đơn giản hóa)
         categories = []
@@ -1194,17 +1261,18 @@ def main():
     st.sidebar.markdown("### Trạng thái Hệ thống")
     st.sidebar.success("✅ ChromaDB Đã kết nối")
     st.sidebar.success("✅ Mô hình AI")
-    st.sidebar.info(f"📊 {st.session_state.collections['drugs_main'].count():,} thuốc có sẵn")
+    st.sidebar.info(f" {st.session_state.collections['drugs_main'].count():,} thuốc có sẵn")
     
     # Hiển thị trang đã chọn
-    if selected_page in ["💬 Chatbot Y tế Q&A"]:
+    if selected_page in [" Chatbot Y tế Q&A"]:
         pages[selected_page](st.session_state.collections, st.session_state.model)
-    elif selected_page in ["🏭 Phân tích Nhà sản xuất", "📊 Tổng quan Dashboard"]:
+    elif selected_page in [" Phân tích Nhà sản xuất", " Tổng quan Dashboard"]:
         pages[selected_page](st.session_state.collections)
-    elif selected_page in ["⚠️ Phân tích Tác dụng Phụ"]:
+    elif selected_page in [" Phân tích Tác dụng Phụ"]:
         pages[selected_page](st.session_state.collections)
     else:
-        pages[selected_page](st.session_state.collections, st.session_state.model)
+        run_page(pages[selected_page], st.session_state.collections, st.session_state.model)
+
 
 if __name__ == "__main__":
     main()
