@@ -676,7 +676,7 @@ def semantic_search_page(collections, model):
 
 def drug_substitution_page(collections, model):
     """Trang 2: Thay thế Thuốc"""
-    st.markdown('<div class="main-header"> Thay thế Thuốc</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"> Thuốc Thay thế</div>', unsafe_allow_html=True)
     
     st.markdown("### Tìm thuốc thay thế có tác dụng tương tự")
     
@@ -1153,14 +1153,18 @@ def dashboard_overview_page(collections):
                 x=top_mfrs.values,
                 y=top_mfrs.index,
                 orientation='h',
-                title='Số lượng Thuốc theo Nhà sản xuất'
+                title='Số lượng Thuốc theo Nhà sản xuất',
+                labels={'x': 'Số lượng Thuốc', 'y': 'Nhà sản xuất'}  # 👈 đặt nhãn trục
             )
             fig_mfr.update_yaxes(categoryorder="total ascending")
             fig_mfr.update_traces(hovertemplate="<b>%{y}</b><br>Số lượng: %{x}<extra></extra>")
-
-            fig_mfr.update_yaxes(categoryorder="total ascending")
+            fig_mfr.update_layout(  # 👈 tiêu đề trục (phòng khi labels bị ghi đè)
+                xaxis_title="Số lượng Thuốc",
+                yaxis_title="Nhà sản xuất",
+                margin=dict(l=220, r=40, t=40, b=40)
+            )
             st.plotly_chart(fig_mfr, use_container_width=True)
-        
+
         with col2:
             # Phân bố đánh giá
             st.markdown("###  Phân bố Điểm Đánh giá")
@@ -1253,7 +1257,7 @@ def main():
     # Menu navigation
     pages = {
         "Tìm kiếm Thuốc": semantic_search_page,
-        "Thay thế Thuốc": drug_substitution_page,
+        "Thuốc Thay thế": drug_substitution_page,
         "Phân tích Tác dụng Phụ": side_effects_analysis_page,
         "Chatbot Y tế Q&A": chatbot_page,
         "Phân tích Nhà sản xuất": manufacturer_analytics_page,
