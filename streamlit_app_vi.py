@@ -854,151 +854,100 @@ def generate_vi_answer_openai(user_q: str, results: dict, model_name: str = "gpt
     except Exception:
         return None
 
+from openai import OpenAI
+
 def chatbot_page(collections, model):
-    """Chatbot Y tế Q&A: ưu tiên trả lời bằng GPT-5 (tiếng Việt) trên ngữ cảnh nội bộ;
-    nếu API lỗi thì rơi về chế độ chỉ truy hồi trong DB và tóm tắt kết quả.
-    """
     import re
+    import streamlit as st
 
-    st.markdown('<div class="main-header"> Chatbot Y tế Q&A</div>', unsafe_allow_html=True)
-    st.markdown("### Hỏi đáp về thuốc và sức khỏe bằng ngôn ngữ tự nhiên")
+    st.markdown('<div class="main-header">🤖 Chatbot Y tế Q&A</div>', unsafe_allow_html=True)
+    st.markdown("### Hỏi đáp về thuốc, triệu chứng, sức khỏe (ngôn ngữ tự nhiên)")
 
-    # --- hiển thị lịch sử
+    # --- lưu & hiển thị lịch sử hội thoại
     if "messages" not in st.session_state:
         st.session_state.messages = []
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+            st.markdown(m["content"], unsafe_allow_html=True)
 
-    # --- ô nhập
-    user_q = st.chat_input("Hỏi tôi về thuốc, triệu chứng, hoặc tình trạng sức khỏe...")
+    # --- nhập câu hỏi
+    user_q = st.chat_input("Nhập câu hỏi về thuốc, triệu chứng hoặc tình trạng sức khỏe...")
     if not user_q:
         return
     st.session_state.messages.append({"role": "user", "content": user_q})
     with st.chat_message("user"):
         st.markdown(user_q)
 
-    # --- kiểm tra tài nguyên
+    # --- kiểm tra dữ liệu
     if model is None or collections is None or "drugs_main" not in collections:
-        reply = "Hệ thống chưa sẵn sàng (thiếu model hoặc collection)."
+        reply = "⚠️ Hệ thống chưa sẵn sàng (thiếu model hoặc collection)."
         with st.chat_message("assistant"):
             st.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
         return
 
-    # --- truy hồi ngữ cảnh nội bộ
-    results = search_medicines(collections["drugs_main"], user_q, model, n_results=6)
+    # --- 1) Truy hồi từ ChromaDB
+    query_q = "Câu hỏi hiện tại: " + user_q
+    for m in st.session_state.messages[:-1]:  # thêm lịch sử hội thoại (trừ câu hỏi hiện tại)
+        if m["role"] == "user":
+            query_q += "\nNgười dùng đã hỏi: " + m["content"]
+        elif m["role"] == "assistant":
+            query_q += "\nTrợ lý đã trả lời: " + m["content"]
+    query_translated = translate_query_openai(query_q)
+    print(f"Query translated: {query_translated}")
+    results = search_medicines(collections["drugs_main"], query_translated, model, n_results=6)
 
-    # --- 1) Thử gọi ChatGPT (GPT-5) để trả lời tiếng Việt từ NGỮ CẢNH nội bộ
+    # --- 2) Chuẩn bị ngữ cảnh từ DB
+    context_texts = []
+    if results and "documents" in results:
+        for doc in results["documents"][0][:4]:  # lấy top-4 doc
+            if doc:
+                context_texts.append(doc.strip())
+    context = "\n\n".join(context_texts) if context_texts else "Không tìm thấy thông tin nội bộ."
+    print(f"Context prepared: {context}")
+    # --- 3) Gọi GPT-5 trực tiếp với thanh loading
+    client = OpenAI()
+
+    system_prompt = (
+        "Bạn là Chatbot Y tế. "
+        "Trả lời ngắn gọn, rõ ràng, bằng tiếng Việt. "
+        "Ưu tiên sử dụng dữ liệu nội bộ (context) cung cấp. "
+        "Nếu liên quan đến thuốc hoặc điều trị, BẮT BUỘC thêm cảnh báo: "
+        "Thông tin chỉ tham khảo, vui lòng hỏi ý kiến bác sĩ/dược sĩ trước khi sử dụng."
+    )
+
     answer = None
     try:
-        # 'gpt-5-mini' nhanh & tiết kiệm; bạn có thể đổi thành 'gpt-5'
-        answer = generate_vi_answer_openai(user_q, results, model_name="gpt-5-mini")
-    except Exception as e:
-        st.warning(f"Không gọi được ChatGPT: {e}")
+        with st.spinner("💬 AI đang soạn câu trả lời..."):
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Ngữ cảnh nội bộ:\n{context}"},
+                {"role": "user", "content": user_q},
+            ]
+            # thêm lịch sử hội thoại trước đó (trừ câu hỏi hiện tại)
+            for m in st.session_state.messages[:-1]:
+                if m["role"] in ["user", "assistant"]:
+                    messages.append({"role": m["role"], "content": m["content"]})
 
+            resp = client.chat.completions.create(
+                model="gpt-5-mini",   # hoặc "gpt-5"
+                messages=messages,
+            )
+            answer = resp.choices[0].message.content.strip()
+    except Exception as e:
+        st.warning(f"Không gọi được GPT-5: {e}")
+
+    # --- 4) Trả lời hoặc fallback
     if answer:
         with st.chat_message("assistant"):
-            st.markdown(answer)
+            st.markdown(answer, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": answer})
-        return
-
-    # --- 2) Fallback: chỉ DB (không gọi API) ---------------------------------
-
-    # helpers nhỏ để làm sạch & “dịch nhẹ” field uses
-    def _normalize_uses_en(txt: str) -> str:
-        if not isinstance(txt, str):
-            return ""
-        t = re.sub(r'(?<=stroke)Treatment', '. Treatment', txt, flags=re.I)  # "strokeTreatment" -> "stroke. Treatment"
-        t = re.sub(r'\s+', ' ', t).strip()
-        return t
-
-    _USES_EN_VI = [
-        (r'\bTreatment of\b', 'Điều trị'),
-        (r'\bPrevention of\b', 'Phòng ngừa'),
-        (r'\bManagement of\b', 'Kiểm soát'),
-        (r'\bHypertension\b', 'tăng huyết áp'),
-        (r'\bhigh blood pressure\b', 'cao huyết áp'),
-        (r'\bHeart failure\b', 'suy tim'),
-        (r'\bheart attack\b', 'nhồi máu cơ tim'),
-        (r'\bstroke\b', 'đột quỵ'),
-        (r'\bConstipation\b', 'táo bón'),
-        (r'\bPain\b', 'đau'),
-        (r'\bFever\b', 'sốt'),
-        (r'\bCough\b', 'ho'),
-        (r'\bAllergy\b', 'dị ứng'),
-        (r'\bInfection\b', 'nhiễm khuẩn'),
-        (r'\bDiarrhea\b', 'tiêu chảy'),
-    ]
-    def _vi_translate_uses(en_text: str) -> str:
-        t = _normalize_uses_en(en_text or "")
-        for en, vi in _USES_EN_VI:
-            t = re.sub(en, vi, t, flags=re.I)
-        return (t[:1].upper() + t[1:]) if t else t
-
-    metas = (results or {}).get("metadatas", [[]])
-    dists = (results or {}).get("distances", [[]])
-    meta_rows = metas[0] if metas else []
-    dist_rows = dists[0] if dists else []
-    n = min(len(meta_rows), len(dist_rows)) if meta_rows and dist_rows else 0
-
-    if n == 0:
-        reply = "Chưa tìm thấy kết quả phù hợp trong cơ sở dữ liệu. Bạn mô tả chi tiết hơn về triệu chứng hoặc tên thuốc nhé?"
+    else:
+        reply = "❌ Hiện tại không thể tạo câu trả lời. Vui lòng thử lại sau."
         with st.chat_message("assistant"):
             st.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
-        return
 
-    lines = []
-    for i, meta in enumerate(meta_rows[:3]):
-        meta = meta or {}
-        dist = dist_rows[i] if i < len(dist_rows) else None
-        sim = format_similarity(dist) if isinstance(dist, (int, float)) else "—"
-
-        name = meta.get("medicine_name", "(Không rõ tên)")
-        comp = (meta.get("composition") or meta.get("ingredients", "")).strip()
-        uses_en = _normalize_uses_en(meta.get("uses", ""))
-        uses_vi = _vi_translate_uses(uses_en) if uses_en else ""
-        manu = meta.get("manufacturer", "Không rõ")
-        ex = meta.get("excellent_review", 0)
-        av = meta.get("average_review", 0)
-        po = meta.get("poor_review", 0)
-
-        block = [
-            f"**{i+1}. {name}** *(Độ tương đồng: {sim})*",
-            f"- **Thành phần:** {comp[:160] + ('...' if len(comp) > 160 else '')}" if comp else "- **Thành phần:** (chưa có dữ liệu)",
-            f"- **Công dụng (VI):** {uses_vi}" if uses_vi else "- **Công dụng:** (chưa có dữ liệu)",
-        ]
-        if uses_en and uses_vi and uses_vi.lower() != uses_en.lower():
-            block.append(f"  <span style='opacity:0.7'>EN: {uses_en}</span>")
-        block += [
-            f"- **Nhà sản xuất:** {manu}",
-            f"- **Đánh giá:** xuất sắc {ex}%, trung bình {av}%, kém {po}%",
-        ]
-
-        # gợi ý thuốc tương tự theo thành phần
-        related_names = []
-        if comp and "drugs_composition" in collections:
-            rel_hits = search_medicines(collections["drugs_composition"], comp, model, n_results=8)
-            r_metas = (rel_hits or {}).get("metadatas", [[]])
-            if r_metas and r_metas[0]:
-                for m2 in r_metas[0]:
-                    nm = (m2 or {}).get("medicine_name")
-                    if nm and nm != name and nm not in related_names:
-                        related_names.append(nm)
-                    if len(related_names) >= 3:
-                        break
-        if related_names:
-            block.append(f"- **Thuốc tương tự (thành phần gần giống):** {', '.join(related_names)}")
-
-        lines.append("\n".join(block))
-
-    lines.append("\n⚠️ *Thông tin chỉ mang tính tham khảo. Không tự ý dùng/đổi thuốc; hãy hỏi dược sĩ/bác sĩ.*")
-    reply = "\n\n".join(lines)
-
-    with st.chat_message("assistant"):
-        st.markdown(reply, unsafe_allow_html=True)
-    st.session_state.messages.append({"role": "assistant", "content": reply})
 
 def manufacturer_analytics_page(collections):
     """Trang 5: Phân tích Nhà sản xuất"""
