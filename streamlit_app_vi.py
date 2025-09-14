@@ -1179,12 +1179,12 @@ def main():
     
     # Menu navigation
     pages = {
-        "🔍 Tìm kiếm Thuốc": semantic_search_page,
-        "🔄 Thay thế Thuốc": drug_substitution_page,
-        "⚠️ Phân tích Tác dụng Phụ": side_effects_analysis_page,
-        "💬 Chatbot Y tế Q&A": chatbot_page,
-        "🏭 Phân tích Nhà sản xuất": manufacturer_analytics_page,
-        "📊 Tổng quan Dashboard": dashboard_overview_page
+        "Tìm kiếm Thuốc": semantic_search_page,
+        "Thay thế Thuốc": drug_substitution_page,
+        "Phân tích Tác dụng Phụ": side_effects_analysis_page,
+        "Chatbot Y tế Q&A": chatbot_page,
+        "Phân tích Nhà sản xuất": manufacturer_analytics_page,
+        "Tổng quan Dashboard": dashboard_overview_page
     }
     
     selected_page = st.sidebar.selectbox("Chọn chức năng:", list(pages.keys()))
