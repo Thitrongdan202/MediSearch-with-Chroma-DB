@@ -566,8 +566,7 @@ def format_similarity(distance: float) -> str:
     return f"{(1 - distance) * 100:.1f}%"
 
 def semantic_search_page(collections, model):
-    """Trang 1: Tìm kiếm"""
-    st.markdown('<div class="main-header">🔍 Tìm kiếm</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"> Tìm kiếm</div>', unsafe_allow_html=True)
     
     st.markdown("### Tìm thuốc bằng mô tả và thành phần")
     
@@ -580,7 +579,7 @@ def semantic_search_page(collections, model):
             key="search_query"
         )
     with col2:
-        search_button = st.button("🔍 Tìm kiếm", type="primary")
+        search_button = st.button(" Tìm kiếm", type="primary")
     
     # Tùy chọn tìm kiếm
     with st.expander("Tùy chọn tìm kiếm"):
@@ -623,11 +622,11 @@ def semantic_search_page(collections, model):
 
                     st.markdown(f"""
                     <div class="drug-card">
-                      <h4>💊 {name}</h4>
+                      <h4> {name}</h4>
                       <p><strong>Độ tương đồng:</strong> <span class="similarity-score">{similarity}</span></p>
-                      <p><strong>🧪 Thành phần:</strong> {comp[:100]}...</p>
-                      <p><strong>🎯 Công dụng (VI):</strong> {uses_vi or '(chưa có dữ liệu)'}{"<br><span style='opacity:.7'>EN: " + uses_en + "</span>" if uses_en and uses_vi and uses_vi.lower() != uses_en.lower() else ""}</p>
-                      <p><strong>🏭 Hãng sản xuất:</strong> {manu}</p>
+                      <p><strong> Thành phần:</strong> {comp[:100]}...</p>
+                      <p><strong> Công dụng (VI):</strong> {uses_vi or '(chưa có dữ liệu)'}{"<br><span style='opacity:.7'>EN: " + uses_en + "</span>" if uses_en and uses_vi and uses_vi.lower() != uses_en.lower() else ""}</p>
+                      <p><strong> Hãng sản xuất:</strong> {manu}</p>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -656,11 +655,11 @@ def semantic_search_page(collections, model):
 
                         st.markdown(f"""
                         <div class="drug-card">
-                          <h4>💊 {name}</h4>
+                          <h4> {name}</h4>
                           <p><strong>Độ tương đồng:</strong> <span class="similarity-score">{similarity}</span></p>
-                          <p><strong>🧪 Thành phần:</strong> {comp[:100]}...</p>
-                          <p><strong>🎯 Công dụng (VI):</strong> {uses_vi or '(chưa có dữ liệu)'}{"<br><span style='opacity:.7'>EN: " + uses_en + "</span>" if uses_en and uses_vi and uses_vi.lower() != uses_en.lower() else ""}</p>
-                          <p><strong>🏭 Hãng sản xuất:</strong> {manu}</p>
+                          <p><strong> Thành phần:</strong> {comp[:100]}...</p>
+                          <p><strong> Công dụng (VI):</strong> {uses_vi or '(chưa có dữ liệu)'}{"<br><span style='opacity:.7'>EN: " + uses_en + "</span>" if uses_en and uses_vi and uses_vi.lower() != uses_en.lower() else ""}</p>
+                          <p><strong> Hãng sản xuất:</strong> {manu}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -675,7 +674,6 @@ def semantic_search_page(collections, model):
 
 
 def drug_substitution_page(collections, model):
-    """Trang 2: Thay thế Thuốc"""
     st.markdown('<div class="main-header"> Thuốc Thay thế</div>', unsafe_allow_html=True)
     
     st.markdown("### Tìm thuốc thay thế có tác dụng tương tự")
@@ -770,68 +768,6 @@ def drug_substitution_page(collections, model):
             else:
                 st.warning("Không tìm thấy thuốc thay thế cho loại thuốc này.")
 
-def side_effects_analysis_page(collections):
-    """Trang 3: Phân tích Tác dụng Phụ"""
-    st.markdown('<div class="main-header"> Phân tích Tác dụng Phụ & Tương tác</div>', unsafe_allow_html=True)
-    
-    st.markdown("### Phân tích tác dụng phụ tiềm ẩn và tương tác thuốc")
-    
-    # Lấy tất cả tên thuốc để multi-select
-    try:
-        all_medicines = collections['drugs_main'].get(include=["metadatas"])
-        medicine_names = [meta['medicine_name'] for meta in all_medicines['metadatas']]
-        medicine_names = sorted(list(set(medicine_names)))[:1000]  # Giới hạn để tăng hiệu suất
-    except:
-        medicine_names = []
-    
-    # Multi-select cho thuốc
-    selected_medicines = st.multiselect(
-        "Chọn thuốc để phân tích (hoặc gõ để tìm kiếm):",
-        options=medicine_names,
-        help="Chọn nhiều thuốc để kiểm tra tương tác"
-    )
-    
-    if st.button("Phân tích Tương tác", type="primary") and selected_medicines:
-        with st.spinner("Đang phân tích tác dụng phụ và tương tác..."):
-            st.success(f"Đang phân tích {len(selected_medicines)} thuốc đã chọn")
-            
-            # Hiển thị thuốc đã chọn
-            st.markdown("### Thuốc đã chọn:")
-            for i, med in enumerate(selected_medicines, 1):
-                st.markdown(f"{i}. **{med}**")
-            
-            # Phân tích giả lập (trong thực tế, bạn sẽ phân tích tương tác thực)
-            st.markdown("### ️ Tương tác Tiềm ẩn:")
-            
-            if len(selected_medicines) > 1:
-                st.warning(" Phát hiện nhiều thuốc - vui lòng tham khảo ý kiến bác sĩ")
-                
-                # Phân tích tác dụng phụ giả lập
-                common_side_effects = ["Buồn nôn", "Chóng mặt", "Đau đầu", "Mệt mỏi", "Đau dạ dày"]
-                side_effects_data = {
-                    'Tác dụng phụ': common_side_effects,
-                    'Tần suất': np.random.randint(10, 80, len(common_side_effects))
-                }
-                
-                df_side_effects = pd.DataFrame(side_effects_data)
-                
-                # Biểu đồ cột tác dụng phụ
-                fig = px.bar(df_side_effects, x='Tác dụng phụ', y='Tần suất',
-                           title='Tần suất Tác dụng Phụ Thường gặp',
-                           color='Tần suất',
-                           color_continuous_scale='Reds')
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Phân tích theo hệ cơ quan
-                categories = ['Gan', 'Thận', 'Tim', 'Hệ thần kinh', 'Tiêu hóa']
-                category_counts = np.random.randint(1, 5, len(categories))
-                
-                fig_pie = px.pie(values=category_counts, names=categories,
-                               title='Tác dụng Phụ theo Hệ Cơ quan')
-                st.plotly_chart(fig_pie, use_container_width=True)
-            else:
-                st.info("Chọn nhiều thuốc để phân tích tương tác")
-
 def get_openai_api_key():
     return os.getenv("OPENAI_API_KEY")
 
@@ -880,7 +816,7 @@ def chatbot_page(collections, model):
 
     # --- kiểm tra dữ liệu
     if model is None or collections is None or "drugs_main" not in collections:
-        reply = "⚠️ Hệ thống chưa sẵn sàng (thiếu model hoặc collection)."
+        reply = " Hệ thống chưa sẵn sàng (thiếu model hoặc collection)."
         with st.chat_message("assistant"):
             st.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
@@ -918,7 +854,7 @@ def chatbot_page(collections, model):
 
     answer = None
     try:
-        with st.spinner("💬 AI đang soạn câu trả lời..."):
+        with st.spinner(" AI đang soạn câu trả lời..."):
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Ngữ cảnh nội bộ:\n{context}"},
@@ -943,14 +879,13 @@ def chatbot_page(collections, model):
             st.markdown(answer, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": answer})
     else:
-        reply = "❌ Hiện tại không thể tạo câu trả lời. Vui lòng thử lại sau."
+        reply = " Hiện tại không thể tạo câu trả lời. Vui lòng thử lại sau."
         with st.chat_message("assistant"):
             st.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
 
 
 def manufacturer_analytics_page(collections):
-    """Trang 5: Phân tích Nhà sản xuất"""
     st.markdown('<div class="main-header"> Phân tích Nhà sản xuất</div>', unsafe_allow_html=True)
     
     st.markdown("### Phân tích các công ty dược phẩm")
@@ -1107,7 +1042,7 @@ def dashboard_overview_page(collections):
             )
             fig_mfr.update_yaxes(categoryorder="total ascending")
             fig_mfr.update_traces(hovertemplate="<b>%{y}</b><br>Số lượng: %{x}<extra></extra>")
-            fig_mfr.update_layout(  # 👈 tiêu đề trục (phòng khi labels bị ghi đè)
+            fig_mfr.update_layout(
                 xaxis_title="Số lượng Thuốc",
                 yaxis_title="Nhà sản xuất",
                 margin=dict(l=220, r=40, t=40, b=40)
@@ -1207,7 +1142,6 @@ def main():
     pages = {
         "Tìm kiếm Thuốc": semantic_search_page,
         "Thuốc Thay thế": drug_substitution_page,
-        "Phân tích Tác dụng Phụ": side_effects_analysis_page,
         "Chatbot Y tế Q&A": chatbot_page,
         "Phân tích Nhà sản xuất": manufacturer_analytics_page,
         "Tổng quan Dashboard": dashboard_overview_page
@@ -1218,8 +1152,8 @@ def main():
     # Trạng thái hệ thống
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Trạng thái Hệ thống")
-    st.sidebar.success("✅ ChromaDB Đã kết nối")
-    st.sidebar.success("✅ Mô hình AI")
+    st.sidebar.success(" ChromaDB Đã kết nối")
+    st.sidebar.success(" Mô hình AI")
     st.sidebar.info(f" {st.session_state.collections['drugs_main'].count():,} thuốc có sẵn")
     
     # Hiển thị trang đã chọn
