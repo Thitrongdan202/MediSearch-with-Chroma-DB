@@ -746,15 +746,21 @@ def drug_substitution_page(collections, model):
                     for alt in alternatives:
                         col1, col2 = st.columns([3, 1])
                         with col1:
-                            st.markdown(f"""
-                            ** {alt.get('name')}**  
-                            *Độ tương đồng: {alt.get('similarity'):.1f}%*  
-                             {alt.get('composition')[:80]}...  
-                             {alt.get('uses')[:100]}...  
-                             {alt.get('manufacturer')}
-                            """)
+                            title = (alt.get('name') or '(Không rõ tên)').strip()
+                            comp = (alt.get('composition') or '').strip()
+                            uses = (alt.get('uses') or '').strip()
+                            manu = (alt.get('manufacturer') or '').strip()
+
+                            st.markdown(
+                                f"**{title}**  \n"
+                                f"*Độ tương đồng: {alt.get('similarity'):.1f}%*  \n"
+                                f"{comp[:80]}...  \n"
+                                f"{uses[:100]}...  \n"
+                                f"{manu}"
+                            )
+
                         with col2:
-                            st.metric("Đánh giá tốt", f"{alt.get('excellent_review',0)}%")
+                            st.metric("Đánh giá tốt", f"{alt.get('excellent_review', 0)}%")
                             st.metric("Trung bình", f"{alt.get('average_review', 0)}%")
                             st.metric("Kém", f"{alt.get('poor_review', 0)}%")
 
