@@ -13,8 +13,6 @@ Usage:
 import chromadb
 from sentence_transformers import SentenceTransformer
 from typing import Dict, Any, List, Tuple
-import sys
-import os
 
 def setup_chromadb_client(persist_directory: str = "./chroma_db"):
     """Setup ChromaDB client with persistent storage"""
