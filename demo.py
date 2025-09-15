@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ChromaDB Medicine Search Demo
 ============================
