@@ -28,7 +28,6 @@ def run_page(fn, collections, model):
         else:
             return fn()
     except Exception:
-        # fallback mặc định
         return fn(collections, model)
 
 # Symptom
@@ -791,7 +790,6 @@ def generate_vi_answer_openai(user_q: str, results: dict, model_name: str = "gpt
 from openai import OpenAI
 
 def chatbot_page(collections, model):
-    import re
     import streamlit as st
 
     st.markdown('<div class="main-header">🤖 Chatbot Y tế Q&A</div>', unsafe_allow_html=True)
