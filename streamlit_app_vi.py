@@ -7,12 +7,10 @@ Nền tảng tìm kiếm và phân tích thuốc toàn diện sử dụng Chroma
 """
 
 import chromadb
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 from sentence_transformers import SentenceTransformer
-from openai import OpenAI
 import os
 from dotenv import load_dotenv
 import inspect
