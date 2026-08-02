@@ -1161,7 +1161,7 @@ def main():
         pages[selected_page](st.session_state.collections)
     else:
         run_page(pages[selected_page], st.session_state.collections, st.session_state.model)
-
+# sửa lại danh sách thuốc vì code khá dài còn lang man
 
 if __name__ == "__main__":
     main()
