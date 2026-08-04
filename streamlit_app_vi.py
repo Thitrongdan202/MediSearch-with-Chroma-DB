@@ -437,8 +437,7 @@ def vi_translate_uses(en_text: str) -> str:
 load_dotenv()
 # Cấu hình trang
 st.set_page_config(
-    page_title="Nền tảng Phân tích Thuốc Thông minh",
-    page_icon="💊",
+    page_title="Smart Drug Analysis Platform",
     layout="wide",
     initial_sidebar_state="expanded"
 )
